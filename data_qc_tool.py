@@ -1,3 +1,4 @@
+import json
 from typing import Type
 from pydantic import BaseModel, Field
 
@@ -17,7 +18,7 @@ class DataQCTool(BaseTool):
     args_schema: Type[BaseModel] = DataQCInput
     description: str = (
         "Checks whether urban flood input data are valid before flood-risk inference. "
-        "Returns PASS, WARN, or FAIL with reasons."
+        "Returns a JSON string with status PASS, WARN, or FAIL and reasons."
     )
 
     def _execute(
@@ -29,42 +30,38 @@ class DataQCTool(BaseTool):
         grid_id: str,
     ):
         warnings = []
+        errors = []
 
+        # FAIL 조건 (추론 불가)
         if rainfall_10min < 0 or rainfall_1h < 0:
-            return {
-                "status": "FAIL",
-                "ready_for_inference": False,
-                "warnings": ["Rainfall values cannot be negative."]
-            }
-
+            errors.append("Rainfall values cannot be negative.")
         if not timestamp:
-            return {
-                "status": "FAIL",
-                "ready_for_inference": False,
-                "warnings": ["Timestamp is missing."]
-            }
-
+            errors.append("Timestamp is missing.")
         if not grid_id:
-            return {
-                "status": "FAIL",
-                "ready_for_inference": False,
-                "warnings": ["grid_id is missing."]
-            }
+            errors.append("grid_id is missing.")
 
+        # WARN 조건 (추론은 가능하지만 주의)
         if rainfall_10min > rainfall_1h:
-            warnings.append(
-                "10-minute rainfall exceeds 1-hour accumulated rainfall."
-            )
-
+            warnings.append("10-minute rainfall exceeds 1-hour accumulated rainfall.")
         if water_level < 0:
             warnings.append("Water level is negative and should be checked.")
 
-        status = "WARN" if warnings else "PASS"
+        if errors:
+            status = "FAIL"
+            ready = False
+        elif warnings:
+            status = "WARN"
+            ready = True
+        else:
+            status = "PASS"
+            ready = True
 
-        return {
+        result = {
             "status": status,
-            "ready_for_inference": True,
-            "warnings": warnings,
+            "ready_for_inference": ready,
+            "warnings": errors + warnings,
             "timestamp": timestamp,
-            "grid_id": grid_id
+            "grid_id": grid_id,
         }
+
+        return json.dumps(result, ensure_ascii=False)

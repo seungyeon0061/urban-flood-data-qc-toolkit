@@ -1,12 +1,12 @@
+import os
+import sys
 from typing import List
 
-from superagi.tools.base_tool import BaseTool
-from superagi.tools.base_toolkit import BaseToolkit
+from superagi.tools.base_tool import BaseTool, BaseToolkit
 
-try:
-    from .data_qc_tool import DataQCTool
-except ImportError:
-    from data_qc_tool import DataQCTool
+# 같은 폴더의 data_qc_tool.py를 찾을 수 있게 경로 추가
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from data_qc_tool import DataQCTool
 
 
 class DataQCToolkit(BaseToolkit):
